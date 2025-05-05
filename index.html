@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>無限ランナー</title>
+  <style>
+    body { margin:0; overflow:hidden; }
+    canvas { display:block; background:#000; }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="250"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let assets = {};
+let loaded = 0;
+const assetList = ['player.png','obstacle.png','background.png','ground.png'];
+assetList.forEach(src => {
+  const img = new Image();
+  img.src = 'assets/' + src;
+  img.onload = () => {
+    if (++loaded === assetList.length) init();
+  };
+  assets[src] = img;
+});
+
+let player = { x:50, y:180, vy:0, width:64, height:64 };
+let gravity = 0.4;
+let jumpStrength = -12;
+let obstacles = [];
+let frame = 0;
+let speed = 4;
+let score = 0;
+let gameOver = false;
+
+
+function init() {
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && player.y >= 180) player.vy = jumpStrength;
+  });
+  canvas.addEventListener('touchstart', () => {
+    if (player.y >= 180) player.vy = jumpStrength;
+  });
+  requestAnimationFrame(loop);
+}
+
+function resetGame() {
+  gameOver = true;
+  setTimeout(() => {
+    player.y = 180;
+    player.vy = 0;
+    obstacles = [];
+    score = 0;
+    frame = 0;
+    gameOver = false;
+    requestAnimationFrame(loop);  // ゲームを再開
+  }, 1000); // 1秒停止
+}
+
+function loop() {
+  if (gameOver) return; // ← 停止中なら何もしない
+
+  frame++;
+
+
+  // 背景
+  ctx.drawImage(assets['background.png'], -((frame*1)%800), 0);
+  ctx.drawImage(assets['background.png'], 800-((frame*1)%800), 0);
+
+  // 地面
+  ctx.drawImage(assets['ground.png'], -((frame*speed)%800), 200);
+  ctx.drawImage(assets['ground.png'], 800-((frame*speed)%800), 200);
+
+  // プレイヤー
+  player.vy += gravity;
+  player.y += player.vy;
+  if (player.y > 180) { player.y = 180; player.vy = 0; }
+  ctx.drawImage(assets['player.png'], player.x, player.y);
+
+  // 障害物
+  if (frame % 30 === 0 && Math.random() < 0.4) {
+    obstacles.push({ x: 800, y: 180, width:64, height:64 });
+  }
+
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const obs = obstacles[i];
+    obs.x -= speed;
+    ctx.drawImage(assets['obstacle.png'], obs.x, obs.y);
+    if (obs.x + obs.width < 0) {
+      obstacles.splice(i, 1);
+      score++;
+      continue;
+    }
+
+    let margin = 20;
+    const collided = (
+      player.x + margin < obs.x + obs.width - margin &&
+      player.x + player.width - margin > obs.x + margin &&
+      player.y + margin < obs.y + obs.height - margin &&
+      player.y + player.height - margin > obs.y + margin
+    );
+
+    if (collided) {
+      resetGame();
+      return;
+    }
+  }
+
+  // スコア
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px sans-serif';
+  ctx.fillText('Score: ' + score, 10, 30);
+
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
